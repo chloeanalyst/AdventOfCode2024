@@ -1,0 +1,85 @@
+################################################################################## Advent of Code Day 3
+
+library(stringr)
+library(dplyr)
+
+
+find_target_distance <- function(large_string, detective, target) {
+
+  positions <- gregexpr(target, large_string, fixed = TRUE)
+  dectective_positions <- gregexpr(detective, large_string, fixed = TRUE)
+  
+
+  target_start <- positions[[1]][1]
+  detective_start_positions <- dectective_positions[[1]]
+  
+
+  if (length(detective_start_positions) > 0) {
+
+    valid_detective_positions <- detective_start_positions[detective_start_positions < target_start]
+    
+    if (length(valid_detective_positions) > 0) {
+
+      rightmost_detective_start <- max(valid_detective_positions)
+      
+
+      distance <- target_start - (rightmost_detective_start + nchar(detective))
+      
+
+      return(list(target_position = target_start, distance = distance))
+    } else {
+      return(list(target_position = target_start, distance = NA)) # No valid detective to the left
+    }
+  } else {
+    return(list(target_position = target_start, distance = NA)) # No matches for detective found
+  }
+}
+
+
+file_path <- "input (2).txt"
+lines <- readLines(file_path)
+corrupted <- paste(lines, collapse = "\n")
+
+
+pattern <- "mul\\([0-9]+,[0-9]+\\)"
+mul <- as.data.frame(str_extract_all(corrupted, pattern))
+colnames(mul) <- "matches"
+
+
+detective_a <- "don't()"
+detective_b <- "do()"
+
+
+distance_dont_vec <- numeric(nrow(mul))
+distance_do_vec <- numeric(nrow(mul))
+
+
+for (i in 1:nrow(mul)) {
+  target <- mul$matches[i]
+  
+
+  result_a <- find_target_distance(corrupted, detective_a, target)
+  result_b <- find_target_distance(corrupted, detective_b, target)
+  
+
+  distance_dont_vec[i] <- result_a$distance
+  distance_do_vec[i] <- result_b$distance
+}
+
+# Add the results as new columns to the mul dataframe
+mul$distance_dont <- distance_dont_vec
+mul$distance_do <- distance_do_vec
+
+mul$check <- mul$distance_dont > mul$distance_do
+
+output <- mul %>% filter(check == TRUE | is.na(check)) %>% select(matches)
+
+
+output$values <- str_extract(output$matches, "[0-9]+,[0-9]+")
+output_result <- output %>% separate(values, into = c("value_1", "value_2"), sep = ",")
+output_result$value_1 <- as.numeric(output_result[,2])
+output_result$value_2 <- as.numeric(output_result[,3])
+
+output_result$instruction <- output_result$value_1 * output_result$value_2
+
+sum(output_result$instruction)
