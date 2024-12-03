@@ -1,0 +1,31 @@
+################################################################################## Advent of Code Day 1
+
+library(tidyverse)
+library(readr)
+
+data <- read_csv("advent_of_code_d1 - Sheet1.csv")
+
+# Part one - Calculate the total distance between all location ID lists.
+
+a <- data %>% select(list_a) %>% arrange(list_a)
+b <- data %>% select(list_b) %>% arrange(list_b)
+
+output <- a %>% cbind(b)
+
+output$distance <- abs(output$list_a - output$list_b)
+
+sum(output$distance)
+
+
+# Part two - calculate the similarity score between the lists
+
+count_b <- b %>%  group_by(list_b) %>% summarise(count = n())
+
+result <- a %>% left_join(count_b, by = c("list_a" = "list_b"))
+
+
+result$count[is.na(result$count)] <- 0
+
+result$s_score <- result$list_a * result$count
+
+sum(result$s_score)
