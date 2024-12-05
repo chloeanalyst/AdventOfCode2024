@@ -1,0 +1,247 @@
+# Day 4 - part 1
+
+library(ggplot2)
+library(tidyverse)
+library(readr)
+
+# wordsearch <- matrix(c(
+#   " ", " ", " ", " ", "X", "X", "M", "A", "S", " ",
+#   " ", "S", "A", "M", "X", "M", "S", " ", " ", " ",
+#   " ", " ", " ", "S", " ", " ", "A", " ", " ", " ",
+#   " ", " ", "A", " ", "A", " ", "M", "S", " ", "X",
+#   "X", "M", "A", "S", "A", "M", "X", " ", "M", "M",
+#   "X", " ", " ", " ", " ", " ", "X", "A", " ", "A",
+#   "S", " ", "S", " ", "S", " ", "S", " ", "S", "S",
+#   " ", "A", " ", "A", " ", "A", " ", "A", " ", "A",
+#   " ", " ", "M", " ", "M", " ", "M", " ", "M", "M",
+#   " ", "X", " ", "X", " ", "X", "M", "A", "S", "X"
+# ), nrow = 10, byrow = TRUE)
+
+data <- read_csv("AOC-DAY4p1 - Sheet2 (1).csv")
+
+wordsearch <- as.matrix(data)
+
+add_border <- function(wordsearch, buffer_size = 4) {
+  nrow <- nrow(wordsearch)
+  ncol <- ncol(wordsearch)
+  wordsearch_padded <- matrix(".", nrow = nrow + 2 * buffer_size, ncol = ncol + 2 * buffer_size)
+  wordsearch_padded[(buffer_size + 1):(nrow + buffer_size), (buffer_size + 1):(ncol + buffer_size)] <- wordsearch
+  return(wordsearch_padded)
+}
+
+wordsearch_padded <- add_border(wordsearch, buffer_size = 4)
+
+
+find_word <- function(wordsearch, word) {
+  nrow <- nrow(wordsearch)
+  ncol <- ncol(wordsearch)
+  word_len <- nchar(word)
+  positions <- list()
+  
+
+  word_chars <- strsplit(word, "")[[1]]
+  
+  # Define the directions for searching
+  directions <- list(
+    horizontal_forward = c(0, 1),
+    horizontal_backward = c(0, -1),
+    vertical_down = c(1, 0),
+    vertical_up = c(-1, 0),
+    diagonal_downright = c(1, 1),
+    diagonal_upleft = c(-1, -1),
+    diagonal_downleft = c(1, -1),
+    diagonal_upright = c(-1, 1)
+  )
+  
+  # Search for the word in all directions starting from the middle character
+  middle_index <- ceiling(word_len / 2)
+  middle_char <- word_chars[middle_index]
+  
+  for (i in 5:nrow) {
+    for (j in 5:ncol) {
+      if (wordsearch[i, j] == middle_char) {
+        for (direction in names(directions)) {
+          di <- directions[[direction]][1]
+          dj <- directions[[direction]][2]
+          
+          match <- TRUE
+          for (k in 0:(word_len - 1)) {
+            pos_i <- i + (k - middle_index + 1) * di
+            pos_j <- j + (k - middle_index + 1) * dj
+            
+            if (pos_i < 1 || pos_i > nrow || pos_j < 1 || pos_j > ncol || wordsearch[pos_i, pos_j] != word_chars[k + 1]) {
+              match <- FALSE
+              break
+            }
+          }
+          
+          if (match) {
+            positions <- append(positions, list(c(i, j, direction, direction, direction)))
+          }
+        }
+      }
+    }
+  }
+  
+  return(positions)
+}
+
+
+
+
+word <- "XMAS" 
+
+
+positions <- find_word(wordsearch_padded, word)
+
+
+
+generate_plot_data_from_positions <- function(wordsearch, positions, word) {
+  ncol <- ncol(wordsearch)  
+  nrow <- nrow(wordsearch)  
+  
+
+  plot_data <- expand.grid(x = 1:ncol, y = 1:nrow)
+  plot_data$letter <- as.vector(t(wordsearch)) 
+  plot_data$highlight <- rep(FALSE, nrow(plot_data))  
+  plot_data$direction_color <- rep(NA, nrow(plot_data)) 
+  
+  
+  
+  # Loop through the positions list to get the coordinates of words
+  for (pos in positions) {
+    x_start <- as.numeric(pos[[2]])  # Column (x)
+    y_start <- as.numeric(pos[[1]])  # Row (y)
+    direction <- pos[[3]]            # Direction (horizontal, vertical, diagonal)
+    word_len <- nchar(word)          # Word length
+    direction_color <- pos[[5]]      # Direction color
+    
+    # Print the starting position and direction for debugging
+    cat("Testing position:", pos, "\n")
+    cat("Starting at x =", x_start, "y =", y_start, "Direction =", direction, "\n")
+    
+    # Check for horizontal forward direction
+    if (direction == "horizontal_forward") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start + i
+        if (x <= ncol) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y_start] <- TRUE 
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y_start] <- direction_color
+        }
+      }
+    }
+    
+    # Check for horizontal backward direction
+    else if (direction == "horizontal_backward") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start - i
+        if (x > 0) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y_start] <- TRUE
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y_start] <- direction_color
+        }
+      }
+    }
+    
+    # Check for vertical down direction
+    else if (direction == "vertical_down") {
+      for (i in -1:(word_len - 2)) {
+        y <- y_start + i
+        if (y <= nrow) {
+          plot_data$highlight[plot_data$x == x_start & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x_start & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+
+    # Check for vertical up direction
+    else if (direction == "vertical_up") {
+      for (i in -1:(word_len - 2)) {
+        y <- y_start - i
+        if (y > 0) {
+          plot_data$highlight[plot_data$x == x_start & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x_start & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+    
+    # Check for diagonal down-right direction
+    else if (direction == "diagonal_downright") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start + i
+        y <- y_start + i
+        if (x <= ncol && y <= nrow) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+    
+    # Check for diagonal down-left direction
+    else if (direction == "diagonal_downleft") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start + i
+        y <- y_start + i
+        if (x <= ncol && y <= nrow) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+
+    # Check for diagonal up-left direction
+    else if (direction == "diagonal_upleft") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start - i
+        y <- y_start - i
+        if (x > 0 && y > 0) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+    
+    # Check for diagonal up-right direction
+    else if (direction == "diagonal_upright") {
+      for (i in -1:(word_len - 2)) {
+        x <- x_start - i
+        y <- y_start - i
+        if (x > 0 && y > 0) {
+          plot_data$highlight[plot_data$x == x & plot_data$y == y] <- TRUE
+          plot_data$direction_color[plot_data$x == x & plot_data$y == y] <- direction_color
+        }
+      }
+    }
+    
+  }
+  
+  return(plot_data)
+}
+
+
+plot_data <- generate_plot_data_from_positions(wordsearch_padded, positions, word)
+
+
+p <- ggplot(plot_data, aes(x = x, y = y)) +
+
+  geom_tile(aes(fill = highlight), width = 1, height = 1) +
+
+  scale_fill_manual(values = c("white", "white")) +
+  
+  geom_segment(data = plot_data[plot_data$highlight == TRUE, ], 
+               aes(x = x - 0.5, xend = x + 0.5, y = y - 0.5, yend = y + 0.5, color = direction_color),
+               size = 3) + 
+  geom_text(aes(label = letter), size = 5) +
+
+  scale_color_manual(values = c("#FFB6B6", "#A8E6CF", "#FFD700", "#C0C0C0", "#F8B7B5", "#A8D5BA", "#D7B49E", "#F0C2C2")) +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = margin(0, 0, 0, 0)) +
+
+  coord_fixed(ratio = 1) + 
+  scale_y_reverse()  
+
+p
+
+ ggsave("wordsearch_plot.png", plot = p, width = 40, height = 40, dpi = 300)
